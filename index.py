@@ -1,5 +1,8 @@
 from scapy.all import *
 
+import thread
+import time
+
 class ArpSniffer:
   """
   Creates a sniffer that collects the sniffed ARP packets
@@ -8,14 +11,16 @@ class ArpSniffer:
     self.packets = []
 
   def arp_monitor_callback(self, pkt):
-    if ARP in pkt and pkt[ARP].op in (1,2): #who-has or is-at
+    if ARP in pkt and pkt[ARP].op == 2: # is-at
         self.packets.append(pkt)
 
   def sniff_collect(self, num):
     # Reset the collected packets thus far
     if len(self.packets) != 0:
       self.packets = []
-    sniff(prn=self.arp_monitor_callback, filter="arp", count=num)
+
+    # Stops sniffing after num packets of ARP packets have been collected
+    sniff(prn=self.arp_monitor_callback, filter="arp", count=num) 
 
   def is_at_packets(self):
     return filter(lambda x: x[ARP].op == 2, self.packets)
