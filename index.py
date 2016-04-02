@@ -30,29 +30,47 @@ class ArpChecker:
   """
   An object that takes in a ARP packet and performs necessary checks
   """
-
-  def __init__(self, packet):
-    self.ether_src = packet[Ether].src
-    self.ether_dst = packet[Ether].dst
-    self.arp_src = packet[ARP].hwsrc
-    self.arp_dst = packet[ARP].hwdst
+  def __init__(self):
+    pass
   
-  def header_consistency_check(self):
-    return self.ether_src == self.arp_src and self.ether_dst == self.arp_dst
+  def header_consistency_check(self, packet):
+    ether_src = packet[Ether].src
+    ether_dst = packet[Ether].dst
+    arp_src = packet[ARP].hwsrc
+    arp_dst = packet[ARP].hwdst
+
+    return ether_src == arp_src and ether_dst == arp_dst
+
 
 # Method 1
 # This checks should only be done on the 'is-at' ARP packets
 # ARP source MAC  != MAC header's source MAC
 # ARP dest MAC    != MAC header's dest MAC
 arp_sniffer = ArpSniffer()
-arp_sniffer.sniff_collect(10)
+arp_sniffer.sniff_collect(5) # TODO: let user specify how many packets to listen to?
 foo = arp_sniffer.is_at_packets()
 bar = foo[0]
 bar.show()
-# bar[ARP].show()
-# bar[Ether].show()
-check = ArpChecker(bar)
+bar[ARP].show()
+bar[Ether].show()
+check = ArpChecker().header_consistency_check(bar)
 print check.header_consistency_check()
+# to check this consistency check, just use scapy's arping("192.168.0.*")
+
+
 
 # Method 2
 # Send TCP SYN to suspected spoofers
+
+# Procedures:
+# 1. Send an ARP 'who-has' packet
+# 2. If received a lot of replies, send a TCP SYN packet to each of them
+# 3. The one who replied is the real one
+
+
+
+
+
+
+
+
