@@ -53,8 +53,8 @@ bar = foo[0]
 bar.show()
 bar[ARP].show()
 bar[Ether].show()
-check = ArpChecker().header_consistency_check(bar)
-print check.header_consistency_check()
+checker = ArpChecker()
+print checker.header_consistency_check(bar)
 # to check this consistency check, just use scapy's arping("192.168.0.*")
 
 
