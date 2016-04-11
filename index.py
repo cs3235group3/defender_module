@@ -17,38 +17,6 @@ class ArpDefender:
     self.suspects = []
     self.checker = ArpChecker()
 
-  # ===============================
-  # Passive detection
-  # ===============================
-  def arp_who_has_callback(self, pkt):
-    if ARP in pkt and pkt[ARP].op == 1: # who-has
-      self.replies.append(pkt)
-
-  def arp_is_at_callback(self, pkt):
-    if ARP in pkt and pkt[ARP].op == 2: # is-at
-      self.packets.append(pkt)
-
-      # Debug
-      # print self.checker.header_consistency_check(pkt)
-
-      if not self.checker.header_consistency_check(pkt):
-        print "Confirmed attacker at hwaddr: " + pkt[ARP].hwsrc + " pretending to be at IP address " + pkt[ARP].psrc
-        self.suspects.append(pkt)
-
-  def sniff_collect(self, num):
-    # Stops sniffing after num packets of ARP packets have been collected
-    # Does not take into account if they are is-at or who-has
-    sniff(prn=self.arp_is_at_callback, filter="arp", count=num)
-
-  def is_at_packets(self):
-    return filter(lambda x: x[ARP].op == 2, self.packets)
-
-  def get_all_packets(self):
-    return self.packets
-
-  def get_suspects(self):
-    return self.suspects
-
   # ===================================
   # Initialisation of program
   # ===================================
@@ -89,8 +57,6 @@ class ArpDefender:
   def hosts_check(self):
     # Runs discover_all_hosts 3 TIMES, see if there's a change in the mapping
     # If no change, assume that attacker has not started tampering (I probably need some justification for this)
-    candidates = [{}, {}, {}]
-
     inconsistent = False
     suspects = []
     seed = self.discover_all_hosts()
@@ -114,6 +80,38 @@ class ArpDefender:
       return suspects
     else:
       return seed
+
+  # ===============================
+  # Passive detection
+  # ===============================
+  def arp_who_has_callback(self, pkt):
+    if ARP in pkt and pkt[ARP].op == 1: # who-has
+      self.replies.append(pkt)
+
+  def arp_is_at_callback(self, pkt):
+    if ARP in pkt and pkt[ARP].op == 2: # is-at
+      self.packets.append(pkt)
+
+      # Debug
+      # print self.checker.header_consistency_check(pkt)
+
+      if not self.checker.header_consistency_check(pkt):
+        print "Confirmed attacker at hwaddr: " + pkt[ARP].hwsrc + " pretending to be at IP address " + pkt[ARP].psrc
+        self.suspects.append(pkt)
+
+  def sniff_collect(self, num):
+    # Stops sniffing after num packets of ARP packets have been collected
+    # Does not take into account if they are is-at or who-has
+    sniff(prn=self.arp_is_at_callback, filter="arp", count=num)
+
+  def is_at_packets(self):
+    return filter(lambda x: x[ARP].op == 2, self.packets)
+
+  def get_all_packets(self):
+    return self.packets
+
+  def get_suspects(self):
+    return self.suspects
 
   # ===================================
   # Probing check for ARP full cycle
