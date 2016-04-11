@@ -3,6 +3,8 @@ from scapy.all import *
 import thread
 import time
 
+# Use this program with the interactive Python shell
+
 class ArpDefender:
   """
   Creates a sniffer that collects the sniffed ARP packets
@@ -10,7 +12,7 @@ class ArpDefender:
   """
   def __init__(self):
     self.replies = []
-    self.packets = []
+    self.packets = [] # temp storage for packets
     self.mapping = {} # stores the mapping of IP to MAC Address
     self.suspects = []
     self.checker = ArpChecker()
@@ -18,17 +20,25 @@ class ArpDefender:
   # ===============================
   # Passive detection
   # ===============================
+  def arp_who_has_callback(self, pkt):
+    if ARP in pkt and pkt[ARP].op == 1: # who-has
+      self.replies.append(pkt)
+
   def arp_is_at_callback(self, pkt):
     if ARP in pkt and pkt[ARP].op == 2: # is-at
       self.packets.append(pkt)
 
-    if not self.checker.header_consistency_check(pkt):
-      print "Confirmed attacker at hwaddr: " + pkt[ARP].hwsrc + " pretending to be at IP address " + pkt[ARP].psrc
-      self.suspects.append(pkt)
+      # Debug
+      # print self.checker.header_consistency_check(pkt)
+
+      if not self.checker.header_consistency_check(pkt):
+        print "Confirmed attacker at hwaddr: " + pkt[ARP].hwsrc + " pretending to be at IP address " + pkt[ARP].psrc
+        self.suspects.append(pkt)
 
   def sniff_collect(self, num):
     # Stops sniffing after num packets of ARP packets have been collected
-    sniff(prn=self.arp_is_at_callback, filter="arp", count=num) 
+    # Does not take into account if they are is-at or who-has
+    sniff(prn=self.arp_is_at_callback, filter="arp", count=num)
 
   def is_at_packets(self):
     return filter(lambda x: x[ARP].op == 2, self.packets)
@@ -139,22 +149,29 @@ class ArpChecker:
   """
   An object that takes in a ARP packet and performs necessary checks
   """
+  # Header consistency check won't work if Host A says IP B is at MAC Address of A
+  # Header consistency check works against UNMODIFIED ARP packets
+  # e.g. dest mac in mac header != dest mac in arp header
   def header_consistency_check(self, packet):
+    packet.show()
     ether_src = packet[Ether].src
     ether_dst = packet[Ether].dst
     arp_src = packet[ARP].hwsrc
     arp_dst = packet[ARP].hwdst
 
+    print (ether_src, ether_dst, arp_src, arp_dst)
     return ether_src == arp_src and ether_dst == arp_dst
 
-
+d = ArpDefender()
+d.determine_mapping()
+# d.sniff_collect(5)
 
 # Method 1
 # This checks should only be done on the 'is-at' ARP packets
 # ARP source MAC  != MAC header's source MAC
 # ARP dest MAC    != MAC header's dest MAC
-arp_defender = ArpDefender()
-arp_defender.sniff_collect(5) # TODO: let user specify how many packets to listen to?
+# arp_defender = ArpDefender()
+# arp_defender.sniff_collect(5) # TODO: let user specify how many packets to listen to?
 # foo = arp_defender.is_at_packets()
 # bar = foo[0]
 # bar.show()
