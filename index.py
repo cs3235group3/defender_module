@@ -40,35 +40,74 @@ class ArpDefender:
     return self.suspects
 
   # ===================================
-  # Probing check for ARP full cycle
+  # Initialisation of program
   # ===================================
-  def arp_who_has_callback(self, pkt):
-    if ARP in pkt and pkt[ARP].op == 1: # who-has
-      self.replies.append(pkt)
-
   # Sends out arp to all known hosts on the network
   # Caches the mapping
+  # Note that this mapping is a weak claim: not absolutely perfect
   def determine_mapping(self):
-    pass
+    output = self.hosts_check()
 
-  # def discover_all_hosts(self):
-  def dah(self):
+    if type(output) == list:
+      # Means got suspect
+      print "There's someone performing ARP attacks on your network now."
+      print [x for x in output]
+    elif type(output) == dict:
+      print "Initial MAC to IP mapping has been completed."
+      print output
+
+  def discover_all_hosts(self):
     # A really rudimentary way of getting all the hosts in your local area network >.<
     # Probably doesn't work for all cases
     a = ARP()
     self_ip = a.psrc
-    subnet = ".".join(self_ip.split(".")[:3]) + ".*" # REALLY HACKY
+    subnet = ".".join(self_ip.split(".")[:3]) + ".*" # REALLY HACKY PLEASE FIND A BETTER WAY (if time permits)
+    
+    # Debug
     print subnet
 
     hosts = {} # key: IP address, value: MAC address
     ans, _ = arping(subnet)
     for answer in ans:
       arp_reply = answer[1]
-      # hosts[arp_reply.psrc] = arp_reply.hwsrc
+      hosts[arp_reply.psrc] = arp_reply.hwsrc
 
     # Debug
     print hosts
+    return hosts
 
+  def hosts_check(self):
+    # Runs discover_all_hosts 3 TIMES, see if there's a change in the mapping
+    # If no change, assume that attacker has not started tampering (I probably need some justification for this)
+    candidates = [{}, {}, {}]
+
+    inconsistent = False
+    suspects = []
+    seed = self.discover_all_hosts()
+
+    for i in range(2):
+      updated = self.discover_all_hosts()
+    
+      for ip, mac in updated.items(): 
+        if ip not in seed:
+          seed[ip] = mac
+        elif ip in seed:
+          if seed[ip] == updated[ip]:
+            pass # seed and update's ip to mac mapping agree with each other, nothing suspicious
+          elif seed[ip] != updated[ip]:
+            # Disagreements over ip to mac mapping, one of them must be wrong
+            suspects.append(ip, seed[ip])
+            suspects.append(ip, updated[ip])
+            inconsistent = True
+
+    if inconsistent:
+      return suspects
+    else:
+      return seed
+
+  # ===================================
+  # Probing check for ARP full cycle
+  # ===================================
   def arp_full_cycle_check(self, ip_addr):
     # ip_addr is the IP address which you want to get the correct MAC address for    
 
