@@ -51,18 +51,20 @@ class ArpDefender:
   def determine_mapping(self):
     pass
 
-  def discover_all_hosts():
+  # def discover_all_hosts(self):
+  def dah(self):
     # A really rudimentary way of getting all the hosts in your local area network >.<
     # Probably doesn't work for all cases
     a = ARP()
     self_ip = a.psrc
-    subnet = ".".join(self_ip.split(".")) + ".*" # REALLY HACKY
+    subnet = ".".join(self_ip.split(".")[:3]) + ".*" # REALLY HACKY
+    print subnet
 
     hosts = {} # key: IP address, value: MAC address
     ans, _ = arping(subnet)
     for answer in ans:
       arp_reply = answer[1]
-      hosts[arp_reply.psrc] = arp_reply.hwsrc
+      # hosts[arp_reply.psrc] = arp_reply.hwsrc
 
     # Debug
     print hosts
