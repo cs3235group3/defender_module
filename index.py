@@ -116,32 +116,56 @@ class ArpDefender:
   # ===================================
   # Probing check for ARP full cycle
   # ===================================
+  
+  # Returns the correct MAC address for the ip address (if possible)
   def arp_full_cycle_check(self, ip_addr):
     # ip_addr is the IP address which you want to get the correct MAC address for    
 
     # Probing step
+    # ans is the list of replies we get when we arping the ip address
     ans, unans = arping(ip_addr)
     if len(ans) == 1: 
-      return True # only 1 reply, which means there are no spoofers
+      # only 1 reply, which means there are no spoofers
+      return ans[ARP][hwsrc] # should be correct, haven't tested
+      # return True 
       # wait should change this to return the mac address
     
     for answer in ans:
       # Send a TCP/SYN to confirm their identity  
       reply = tcp_syn_check(ip_addr)
       if reply is not None:
-        return 
+        return reply[ARP][hwsrc]
     
-    return False # should never happen?
+    return False # should never happen? might happen if host just happens to be down and there's no answer
+    # from TCP syn check
 
   # Verifies the host's identity by sending a TCP/SYN packet
   def tcp_syn_check(self, ip_addr):
     ans, unans = sr(Ether()/IP(dst=ip_addr)/TCP(dport=80, flags="S"))
-    return ans    
+    # pkt = Ether()/IP(dst=ip_addr)/TCP(dport=80, flags="S")
+    return ans
 
   def who_has(self, ip_addr):
     a = ARP()
     a.pdst = ip_addr
     send(a)
+
+  # ===========================================
+  # Probing check for ARP request half cycle
+  # ===========================================  
+  
+  # Callback function for sniff
+  # Essentially checks if the packet is an ARP is-at packet (aka response), 
+  # and if it is, the engine will perform the necessary checks
+  def request_half_cycle_callback(self):
+    if ARP in pkt and pkt[ARP].op == 2: # is-at
+      arp_full_cycle_check(pkt[ARP][pdst])
+
+
+
+  # ===========================================
+  # Probing check for ARP response half cycle
+  # ===========================================
 
 class ArpChecker:
   """
