@@ -23,6 +23,11 @@ class ArpDefender:
   # Sends out arp to all known hosts on the network
   # Caches the mapping
   # Note that this mapping is a weak claim: not absolutely perfect
+  
+  # For user to specify his submask
+  def user_submask(self, ip):
+    pass
+
   def determine_mapping(self):
     output = self.hosts_check()
 
@@ -154,18 +159,30 @@ class ArpDefender:
   # Probing check for ARP request half cycle
   # ===========================================  
   
-  # Callback function for sniff
-  # Essentially checks if the packet is an ARP is-at packet (aka response), 
-  # and if it is, the engine will perform the necessary checks
   def request_half_cycle_callback(self):
-    if ARP in pkt and pkt[ARP].op == 2: # is-at
-      arp_full_cycle_check(pkt[ARP][pdst])
-
-
-
+    if ARP in pkt and pkt[ARP].op == 1:
+      if pkt[ARP][psrc] not in self.mapping:
+        if not tcp_syn_check(pkt[ARP][psrc]):
+          print "Someone could be attacking your network"
+  
   # ===========================================
   # Probing check for ARP response half cycle
   # ===========================================
+
+  # Callback function for sniff
+  # Essentially checks if the packet is an ARP is-at packet (aka response), 
+  # and if it is, the engine will perform the necessary checks
+  def response_half_cycle_callback(self):
+    if ARP in pkt and pkt[ARP].op == 2: # is-at
+      # IDEALLY check if anyone in the time interval sent out a request for this
+      
+      # Not checking if anyone within the time interval sent out a request
+      if not arp_full_cycle_check(pkt[ARP][pdst]):
+        print "Someone could be attacking your network"
+
+      # If a valid MAC address is returned, then there is no cause for alarm, hence nothing happens
+
+
 
 class ArpChecker:
   """
