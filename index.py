@@ -87,68 +87,70 @@ class ArpDefender:
       return seed
 
   # ===============================
-  # Passive detection
-  # ===============================
-  def arp_who_has_callback(self, pkt):
-    if ARP in pkt and pkt[ARP].op == 1: # who-has
-      self.replies.append(pkt)
+  # Main interface
+  # ===============================  
+  # Methods here are called by main.py, essentially a callback that 
+  # takes in the sniffed packet that the main thread passes to it,
+  # amd tells if the packet is legit or not
+  def arp_callback(self, pkt):
+    # First line of defence, check if headers are consistent
+    if not self.checker.header_consistency_check(pkt):
+      print "Confirmed attacker at hwaddr: " + pkt[ARP].hwsrc + " pretending to be at IP address " + pkt[ARP].psrc
 
-  def arp_is_at_callback(self, pkt):
-    if ARP in pkt and pkt[ARP].op == 2: # is-at
-      self.packets.append(pkt)
+    # Second line of defence
+    # Active mitigation
+    if ARP in pkt and pkt[ARP].OP == 1:  
+      if pkt[ARP].psrc not in self.mapping:
+        if not tcp_syn_check(pkt[ARP].psrc)[0]:
+          print "Someone could be attacking your network"
+    elif ARP in pkt and pkt[ARP].OP == 2:
+      # Not checking if anyone within the time interval sent out a request
+      if not arp_full_cycle_check(pkt[ARP].pdst):
+        print "Someone could be attacking your network"
 
-      # Debug
-      # print self.checker.header_consistency_check(pkt)
-
-      if not self.checker.header_consistency_check(pkt):
-        print "Confirmed attacker at hwaddr: " + pkt[ARP].hwsrc + " pretending to be at IP address " + pkt[ARP].psrc
-        self.suspects.append(pkt)
-
-  def sniff_collect(self, num):
-    # Stops sniffing after num packets of ARP packets have been collected
-    # Does not take into account if they are is-at or who-has
-    sniff(prn=self.arp_is_at_callback, filter="arp", count=num)
-
-  def is_at_packets(self):
-    return filter(lambda x: x[ARP].op == 2, self.packets)
-
-  def get_all_packets(self):
-    return self.packets
-
-  def get_suspects(self):
-    return self.suspects
+      # If a valid MAC address is returned, then there is no cause for alarm, hence nothing happens
 
   # ===================================
   # Probing check for ARP full cycle
   # ===================================
 
   # Returns the correct MAC address for the ip address (if possible)
-  def arp_full_cycle_check(self, ip_addr):
-    # ip_addr is the IP address which you want to get the correct MAC address for
+  # ip_addr is the IP address which you want to get the correct MAC address for
+  # Returns (<boolean>, <string>)
+  def arp_full_cycle_check(self, ip_addr):    
 
     # Probing step
     # ans is the list of replies we get when we arping the ip address
     ans, unans = arping(ip_addr)
+    
+    # NO SPOOFER
+    # Only 1 reply, which means there are no spoofers
     if len(ans) == 1:
-      # only 1 reply, which means there are no spoofers
-      return ans[ARP].hwsrc # should be correct, haven't tested
-      # return True
-      # wait should change this to return the mac address
+      return (True, ans[ARP].hwsrc)
 
+    # SPOOFERS EXIST
+    # In the event where > 1 host replies to the ARP ping
+    # this method is fucked i need to see what the fuck arping replies
     for answer in ans:
       # Send a TCP/SYN to confirm their identity
-      reply = tcp_syn_check(ip_addr)
-      if reply is not None:
-        return reply[ARP].hwsrc
+      ans = tcp_syn_check(ip_addr)
 
-    return False # should never happen? might happen if host just happens to be down and there's no answer
+      # Need to edit this function too because I have no idea what ans is when the reply is legit
+      if ans[0]:
+        return (True, ans[1][ARP].hwsrc)
+
+    return (False, "") # should never happen? might happen if host just happens to be down and there's no answer
     # from TCP syn check
 
   # Verifies the host's identity by sending a TCP/SYN packet
+  # Returns (<boolean>, response)
   def tcp_syn_check(self, ip_addr):
-    ans, unans = sr(Ether()/IP(dst=ip_addr)/TCP(dport=80, flags="S"))
-    # pkt = Ether()/IP(dst=ip_addr)/TCP(dport=80, flags="S")
-    return ans
+    scan_response = sr1(IP(dst=ip_addr)/TCP(dport=80, flags="S"), timeout=2)
+
+    if not scan_response:
+      return (False, [])
+    else:
+      return (True, scan_response) # need to edit this, I don't know what a legit scan_response looks like
 
   def who_has(self, ip_addr):
     a = ARP()
