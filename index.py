@@ -94,21 +94,35 @@ class ArpDefender:
   # amd tells if the packet is legit or not
   def arp_callback(self, pkt):
     # First line of defence, check if headers are consistent
-    if not self.checker.header_consistency_check(pkt):
-      print "Confirmed attacker at hwaddr: " + pkt[ARP].hwsrc + " pretending to be at IP address " + pkt[ARP].psrc
+    if pkt[ARP].op == 2:
+      if not self.checker.header_consistency_check(pkt):
+        print "Confirmed attacker at hwaddr: " + pkt[ARP].hwsrc + " pretending to be at IP address " + pkt[ARP].psrc
 
     # Second line of defence
     # Active mitigation
-    if ARP in pkt and pkt[ARP].OP == 1:  
+    if ARP in pkt and pkt[ARP].op == 1:  
       if pkt[ARP].psrc not in self.mapping:
-        if not tcp_syn_check(pkt[ARP].psrc)[0]:
+        if not self.tcp_syn_check(pkt[ARP].psrc)[0]:
           print "Someone could be attacking your network"
-    elif ARP in pkt and pkt[ARP].OP == 2:
+    elif ARP in pkt and pkt[ARP].op == 2:
       # Not checking if anyone within the time interval sent out a request
-      if not arp_full_cycle_check(pkt[ARP].pdst):
+      if not self.arp_full_cycle_check(pkt[ARP].pdst):
         print "Someone could be attacking your network"
 
       # If a valid MAC address is returned, then there is no cause for alarm, hence nothing happens
+
+  def run(self):
+    # sniff(prn=self.arp_callback, filter="arp", iface="en0")
+    sniff(prn=self.arp_callback, filter="arp")
+
+    # sniff(prn=self.simple_header_callback, filter="arp")
+
+  def simple_header_callback(self, pkt):
+    if pkt[ARP].op == 2:
+      if not self.checker.header_consistency_check(pkt):
+        print "kena attacked"
+    else:
+      print "not a malicious packet"
 
   # ===================================
   # Probing check for ARP full cycle
@@ -126,7 +140,9 @@ class ArpDefender:
     # NO SPOOFER
     # Only 1 reply, which means there are no spoofers
     if len(ans) == 1:
-      return (True, ans[ARP].hwsrc)
+      # Sample reply
+      # (<Ether  dst=ff:ff:ff:ff:ff:ff type=0x806 |<ARP  pdst=192.168.0.100 |>>, <Ether  dst=3c:15:c2:c4:d9:0a src=34:be:00:4e:2a:74 type=0x806 |<ARP  hwtype=0x1 ptype=0x800 hwlen=6 plen=4 op=is-at hwsrc=34:be:00:4e:2a:74 psrc=192.168.0.100 hwdst=3c:15:c2:c4:d9:0a pdst=192.168.0.103 |>>)]
+      return (True, ans[0][1].src)
 
     # SPOOFERS EXIST
     # In the event where > 1 host replies to the ARP ping
@@ -194,7 +210,7 @@ class ArpChecker:
   # Header consistency check works against UNMODIFIED ARP packets
   # e.g. dest mac in mac header != dest mac in arp header
   def header_consistency_check(self, packet):
-    packet.show()
+    # packet.show()
     ether_src = packet[Ether].src
     ether_dst = packet[Ether].dst
     arp_src = packet[ARP].hwsrc
@@ -205,6 +221,7 @@ class ArpChecker:
 
 d = ArpDefender()
 d.determine_mapping()
+d.run()
 # d.sniff_collect(5)
 
 # Method 1
