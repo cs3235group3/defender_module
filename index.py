@@ -23,7 +23,7 @@ class ArpDefender:
   # Sends out arp to all known hosts on the network
   # Caches the mapping
   # Note that this mapping is a weak claim: not absolutely perfect
-  
+
   # For user to specify his submask
   def user_submask(self, ip):
     pass
@@ -45,7 +45,7 @@ class ArpDefender:
     a = ARP()
     self_ip = a.psrc
     subnet = ".".join(self_ip.split(".")[:3]) + ".*" # REALLY HACKY PLEASE FIND A BETTER WAY (if time permits)
-    
+
     # Debug
     print subnet
 
@@ -68,8 +68,8 @@ class ArpDefender:
 
     for i in range(2):
       updated = self.discover_all_hosts()
-    
-      for ip, mac in updated.items(): 
+
+      for ip, mac in updated.items():
         if ip not in seed:
           seed[ip] = mac
         elif ip in seed:
@@ -121,26 +121,26 @@ class ArpDefender:
   # ===================================
   # Probing check for ARP full cycle
   # ===================================
-  
+
   # Returns the correct MAC address for the ip address (if possible)
   def arp_full_cycle_check(self, ip_addr):
-    # ip_addr is the IP address which you want to get the correct MAC address for    
+    # ip_addr is the IP address which you want to get the correct MAC address for
 
     # Probing step
     # ans is the list of replies we get when we arping the ip address
     ans, unans = arping(ip_addr)
-    if len(ans) == 1: 
+    if len(ans) == 1:
       # only 1 reply, which means there are no spoofers
-      return ans[ARP][hwsrc] # should be correct, haven't tested
-      # return True 
+      return ans[ARP].hwsrc # should be correct, haven't tested
+      # return True
       # wait should change this to return the mac address
-    
+
     for answer in ans:
-      # Send a TCP/SYN to confirm their identity  
+      # Send a TCP/SYN to confirm their identity
       reply = tcp_syn_check(ip_addr)
       if reply is not None:
-        return reply[ARP][hwsrc]
-    
+        return reply[ARP].hwsrc
+
     return False # should never happen? might happen if host just happens to be down and there's no answer
     # from TCP syn check
 
@@ -157,27 +157,27 @@ class ArpDefender:
 
   # ===========================================
   # Probing check for ARP request half cycle
-  # ===========================================  
-  
-  def request_half_cycle_callback(self):
+  # ===========================================
+
+  def request_half_cycle_callback(self, pkt):
     if ARP in pkt and pkt[ARP].op == 1:
-      if pkt[ARP][psrc] not in self.mapping:
-        if not tcp_syn_check(pkt[ARP][psrc]):
+      if pkt[ARP].psrc not in self.mapping:
+        if not tcp_syn_check(pkt[ARP].psrc):
           print "Someone could be attacking your network"
-  
+
   # ===========================================
   # Probing check for ARP response half cycle
   # ===========================================
 
   # Callback function for sniff
-  # Essentially checks if the packet is an ARP is-at packet (aka response), 
+  # Essentially checks if the packet is an ARP is-at packet (aka response),
   # and if it is, the engine will perform the necessary checks
-  def response_half_cycle_callback(self):
+  def response_half_cycle_callback(self, pkt):
     if ARP in pkt and pkt[ARP].op == 2: # is-at
       # IDEALLY check if anyone in the time interval sent out a request for this
-      
+
       # Not checking if anyone within the time interval sent out a request
-      if not arp_full_cycle_check(pkt[ARP][pdst]):
+      if not arp_full_cycle_check(pkt[ARP].pdst):
         print "Someone could be attacking your network"
 
       # If a valid MAC address is returned, then there is no cause for alarm, hence nothing happens
@@ -229,11 +229,4 @@ d.determine_mapping()
 # 1. Send an ARP 'who-has' packet
 # 2. If received a lot of replies, send a TCP SYN packet to each of them
 # 3. The one who replied is the real one
-
-
-
-
-
-
-
 
