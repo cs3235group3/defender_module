@@ -122,6 +122,13 @@ class ArpDefender:
   def simple_check_callback(self, pkt):
     if pkt[ARP].op == 2:
       # print pkt[ARP].psrc # e.g. 192.168.0.100
+
+      # Check if the headers are malformed
+      if not self.checker.header_consistency_check(pkt):
+        print "The ARP and Ethernet headers are not the same"
+        print "ARP MAC is {} but Ethernet MAC is {}".format(pkt[ARP].hwsrc, pkt[Ether].src)
+
+      # Check if it's consistent with the database
       if pkt[ARP].psrc in self.mapping:
         if self.mapping[pkt[ARP].psrc] != pkt[Ether].src:
           print "{} -> {} does not match the IP to MAC mapping database".format(pkt[ARP].psrc, pkt[Ether].src)
@@ -226,17 +233,26 @@ class ArpChecker:
   # e.g. dest mac in mac header != dest mac in arp header
   def header_consistency_check(self, packet):
     # packet.show()
+
     ether_src = packet[Ether].src
     ether_dst = packet[Ether].dst
     arp_src = packet[ARP].hwsrc
     arp_dst = packet[ARP].hwdst
 
-    print (ether_src, ether_dst, arp_src, arp_dst)
-    return ether_src == arp_src and ether_dst == arp_dst
+    if packet[ARP].op == 2:
+      return ether_src == arp_src and ether_dst == arp_dst
+    else:
+      return ether_src == arp_src
+    
+    # print (ether_src, ether_dst, arp_src, arp_dst)
 
 d = ArpDefender()
+print "Initial host mapping: " + str(d.mapping)
 d.determine_mapping()
 d.run()
+print d.mapping
+# d.tcp_syn_check("192.168.0.100")
+# d.run()
 # d.sniff_collect(5)
 
 # Method 1
