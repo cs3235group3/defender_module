@@ -114,16 +114,30 @@ class ArpDefender:
 
   def run(self):
     # sniff(prn=self.arp_callback, filter="arp", iface="en0")
-    sniff(prn=self.arp_callback, filter="arp")
-
+    # sniff(prn=self.arp_callback, filter="arp")
     # sniff(prn=self.simple_header_callback, filter="arp")
+
+    sniff(prn=self.simple_check_callback, filter="arp")
+
+  def simple_check_callback(self, pkt):
+    if pkt[ARP].op == 2:
+      # print pkt[ARP].psrc # e.g. 192.168.0.100
+      if pkt[ARP].psrc in self.mapping:
+        if self.mapping[pkt[ARP].psrc] != pkt[Ether].src:
+          print "{} -> {} does not match the IP to MAC mapping database".format(pkt[ARP].psrc, pkt[Ether].src)
+          print "{} -> {} is the mapping in the database".format(pkt[ARP].psrc, self.mapping[pkt[ARP].psrc]) 
+        else:
+          print "{} -> {} agrees with information in IP to MAC mapping database".format(pkt[ARP].psrc, pkt[Ether].src)
 
   def simple_header_callback(self, pkt):
     if pkt[ARP].op == 2:
+      pkt.show()
       if not self.checker.header_consistency_check(pkt):
         print "kena attacked"
     else:
       print "not a malicious packet"
+
+
 
   # ===================================
   # Probing check for ARP full cycle
