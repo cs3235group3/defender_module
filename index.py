@@ -37,6 +37,7 @@ class ArpDefender:
       print [x for x in output]
     elif type(output) == dict:
       print "Initial MAC to IP mapping has been completed."
+      self.mapping = output
       print output
 
   def discover_all_hosts(self):
